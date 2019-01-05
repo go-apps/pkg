@@ -2,8 +2,6 @@ module github.com/go-apps/pkg
 
 require (
 	github.com/Microsoft/go-winio v0.4.11
-	github.com/Sirupsen/logrus v1.0.6 // indirect
-	github.com/docker/docker v1.13.1
 	github.com/google/go-cmp v0.2.0 // indirect
 	github.com/pkg/errors v0.8.0
 	github.com/sirupsen/logrus v1.2.0
