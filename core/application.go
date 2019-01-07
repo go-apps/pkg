@@ -22,21 +22,6 @@ type coreApplication struct {
 	AppDataPath      string
 }
 
-var gAPP *coreApplication
-
-// CoreApplication singleton
-func CoreApplication() *coreApplication {
-	if gAPP == nil {
-		gAPP = new(coreApplication)
-	}
-
-	return gAPP
-}
-
-func init() {
-	CoreApplication()
-}
-
 func (d *coreApplication) appendOrganizationAndApp() string {
 	return fmt.Sprintf("%s/%s", d.OrganizationName, d.ApplicationName)
 }
