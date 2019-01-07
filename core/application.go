@@ -6,77 +6,80 @@ import (
 	"os/signal"
 	"sync"
 	"syscall"
+
+	"github.com/go-apps/pkg/core/standardpaths"
+	"github.com/go-apps/pkg/crashdmp"
 )
 
-type TaskStatus int
-
-const (
-	TaskStatusRunning = iota
-	TaskStatusClosing
-	TaskStatusClosed
-)
-
-// ITask 协程任务
-type ITask interface {
-	Exec()
-	Close()
-	RestartOnCrash() bool
-	Status() TaskStatus
-}
-
-type Task struct {
-	NeedRestart bool
-	status      TaskStatus
-}
-
-func (t *Task) RestartOnCrash() bool {
-	return t.NeedRestart
-}
-
-func (t *Task) Exec() {
-	t.status = TaskStatusRunning
-}
-
-func (t *Task) Close() {
-	t.status = TaskStatusClosing
-}
-
-func (t *Task) Status() TaskStatus {
-	return t.status
-}
-
-// IApplication IApplication
-type IApplication interface {
-	// Initialize 初始化, 只会进程调用一次
-	Initialize()
-
-	// AddTask 添加一个应用级协程任务
-	AddTask(task ITask)
-
-	// Main 初始化
-	Main()
-
-	// 运行
-	WaitForShutdown()
-}
-
-// CoreApplication CoreApplication
-type CoreApplication struct {
+// coreApplication coreApplication
+type coreApplication struct {
 	sync.WaitGroup
 
-	tasks            []ITask
+	inited           bool
+	tasks            []IApplicationTask
 	ApplicationName  string
 	OrganizationName string
+	AppDataPath      string
+}
+
+var gAPP *coreApplication
+
+// CoreApplication singleton
+func CoreApplication() *coreApplication {
+	if gAPP == nil {
+		gAPP = new(coreApplication)
+	}
+
+	return gAPP
+}
+
+func init() {
+	CoreApplication()
+}
+
+func (d *coreApplication) appendOrganizationAndApp() string {
+	return fmt.Sprintf("%s/%s", d.OrganizationName, d.ApplicationName)
+}
+
+func (d *coreApplication) createAppDataPath() string {
+	datapath, err := standardpaths.WritableLocation(standardpaths.AppDataLocation)
+	if err != nil {
+		datapath = os.TempDir()
+	}
+
+	fmt.Printf("datapath=%s\n", datapath)
+
+	d.AppDataPath = fmt.Sprintf("%s/%s", datapath, d.appendOrganizationAndApp())
+
+	if err = os.MkdirAll(d.AppDataPath, os.ModeDir); err != nil {
+		fmt.Printf("mkdir error:%+v", err)
+	}
+
+	fmt.Printf("appdatapath=%s\n", d.AppDataPath)
+	return d.AppDataPath
 }
 
 // Initialize 初始化
-func (d *CoreApplication) Initialize() {
-	fmt.Printf("CoreApplication Initialize.\n")
-	var rootDir = "d:/"
-	d.setupDumpStackTrap(rootDir)
+func (d *coreApplication) Initialize(orgName string, appName string) {
+	if d.inited {
+		fmt.Println("coreApplication has Initialized.")
+		return
+	}
+	fmt.Println("coreApplication Initialize.")
+
+	d.OrganizationName = orgName
+	d.ApplicationName = appName
+
+	var rootDir = d.createAppDataPath()
+	dmpPath := fmt.Sprintf("%s/dmps", rootDir)
+
+	os.MkdirAll(dmpPath, os.ModeDir)
+	crashdmp.SetupDumpStackTrap(dmpPath)
+
+	d.inited = true
 }
 
-func runTask(task ITask) {
+func runTask(task IApplicationTask) {
 	defer func() {
 		if err := recover(); err != nil {
 			fmt.Println("task panic：", err)
@@ -91,8 +94,8 @@ func runTask(task ITask) {
 }
 
 // AddTask 添加一个应用级协程任务
-func (d *CoreApplication) AddTask(task ITask) {
-	fmt.Printf("CoreApplication AddTask.\n")
+func (d *coreApplication) AddTask(task IApplicationTask) {
+	fmt.Printf("coreApplication AddTask.\n")
 	d.Add(1)
 	d.tasks = append(d.tasks, task)
 	go func() {
@@ -103,26 +106,28 @@ func (d *CoreApplication) AddTask(task ITask) {
 }
 
 // WaitForShutdown 添加一个应用级协程任务
-func (d *CoreApplication) WaitForShutdown() {
-	fmt.Printf("CoreApplication WaitForShutdown.\n")
+func (d *coreApplication) WaitForShutdown() {
+	fmt.Printf("coreApplication WaitForShutdown.\n")
 	for _, task := range d.tasks {
 		task.Close()
 	}
 	d.Wait()
-	fmt.Printf("CoreApplication WaitForShutdown End.\n")
+	fmt.Printf("coreApplication WaitForShutdown End.\n")
 }
 
-func (d *CoreApplication) SetApplicationName(appName string) {
+func (d *coreApplication) SetApplicationName(appName string) {
 	d.ApplicationName = appName
 }
 
-func (d *CoreApplication) SetOrganizationName(orgName string) {
+func (d *coreApplication) SetOrganizationName(orgName string) {
 	d.OrganizationName = orgName
 }
 
-func Run(d IApplication) {
-	d.Initialize()
-
+// Run Run
+func Run(mainFunc func()) int {
+	if !CoreApplication().inited {
+		return 1
+	}
 	exitChan := make(chan int)
 	signalChan := make(chan os.Signal, 1)
 	go func() {
@@ -131,10 +136,12 @@ func Run(d IApplication) {
 	}()
 	signal.Notify(signalChan, syscall.SIGINT, syscall.SIGTERM)
 
-	d.Main()
+	mainFunc()
 
 	<-exitChan
-	d.WaitForShutdown()
+	CoreApplication().WaitForShutdown()
 
 	fmt.Printf("Application Quit.\n")
+
+	return 0
 }

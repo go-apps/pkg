@@ -1,6 +1,6 @@
 // +build windows
 
-package core
+package crashdmp
 
 import (
 	"fmt"
@@ -8,12 +8,12 @@ import (
 	"unsafe"
 
 	winio "github.com/Microsoft/go-winio"
-	"github.com/go-apps/pkg/signal"
+	"github.com/go-apps/pkg/crashdmp/signal"
 	"github.com/sirupsen/logrus"
 	"golang.org/x/sys/windows"
 )
 
-func (d *CoreApplication) setupDumpStackTrap(root string) {
+func SetupDumpStackTrap(root string) {
 	// Windows does not support signals like *nix systems. So instead of
 	// trapping on SIGUSR1 to dump stacks, we wait on a Win32 event to be
 	// signaled. ACL'd to builtin administrators and local system

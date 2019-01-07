@@ -53,22 +53,24 @@ func (s2 *StunServer) Close() {
 	fmt.Println("StunServer Close end.")
 }
 
-type Apprtc struct {
-	core.CoreApplication
-}
+// type Apprtc struct {
+// 	core.CoreApplication
+// }
 
-func (app *Apprtc) Main() {
-	var s1 core.ITask
+func Main() {
+	var s1 core.IApplicationTask
 	s1 = &HttpServer{notifications: make(chan []string)}
-	var s2 core.ITask
+	var s2 core.IApplicationTask
 	s2 = &StunServer{Task: core.Task{NeedRestart: true}, notifications: make(chan []string)}
-	app.AddTask(s1)
-	app.AddTask(s2)
+	core.CoreApplication().AddTask(s1)
+	core.CoreApplication().AddTask(s2)
 }
 
 func main() {
-	var app core.IApplication
-	app = &Apprtc{}
+	// var app core.IApplication
+	// app = &Apprtc{}
 
-	core.Run(app)
+	core.CoreApplication().Initialize("XXXX.Ltd", "Test")
+
+	core.Run(Main)
 }
