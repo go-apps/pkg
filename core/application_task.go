@@ -16,23 +16,23 @@ type IApplicationTask interface {
 	Status() TaskStatus
 }
 
-type Task struct {
+type ApplicationTask struct {
 	NeedRestart bool
 	status      TaskStatus
 }
 
-func (t *Task) RestartOnCrash() bool {
+func (t *ApplicationTask) RestartOnCrash() bool {
 	return t.NeedRestart
 }
 
-func (t *Task) Exec() {
+func (t *ApplicationTask) Exec() {
 	t.status = TaskStatusRunning
 }
 
-func (t *Task) Close() {
+func (t *ApplicationTask) Close() {
 	t.status = TaskStatusClosing
 }
 
-func (t *Task) Status() TaskStatus {
+func (t *ApplicationTask) Status() TaskStatus {
 	return t.status
 }
