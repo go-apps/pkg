@@ -5,7 +5,7 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/go-apps/pkg/signal"
+	"github.com/go-apps/pkg/crashdmp/signal"
 	"github.com/sirupsen/logrus"
 )
 
